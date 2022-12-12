@@ -1,4 +1,6 @@
 node_modules
 .vscode
 dist
+./CARD/node_modules
+./HOST/node_modules
 

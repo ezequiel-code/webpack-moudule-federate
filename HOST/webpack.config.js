@@ -1,6 +1,8 @@
 const path = require('path');
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ESLintPlugin = require('eslint-webpack-plugin');
+const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+const deps = require("./package.json").dependencies;
 let eslintPlugin = null;
 
 function getEslintPlugin(args) {
@@ -32,6 +34,10 @@ module.exports = (env, args) => {
             chunkFilename: '[name].[chunkhash].js',
             clean: true,
         },
+
+        resolve: {
+          extensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
+        },
         module: {
             rules: [
                 {
@@ -58,36 +64,35 @@ module.exports = (env, args) => {
                 template: path.join(__dirname, "src", "index.html"),
             }),
             getEslintPlugin(args),
+
+            new ModuleFederationPlugin({
+              name: "host",
+              filename: "remoteEntry.js",
+              remotes: {
+                "nav": "nav@http://localhost:3002/remoteEntry.js",
+              },
+              exposes: {},
+              shared: {
+                ...deps,
+                react: {
+                  singleton: true,
+                  requiredVersion: deps.react,
+                },
+                "react-dom": {
+                  singleton: true,
+                  requiredVersion: deps["react-dom"],
+                },
+              },
+            }),
         ],
 
 
         devServer: {
-            port: 3002,
+            port: 3001,
             open: true,
             headers: {
               "Access-Control-Allow-Origin": "*",
             },
         },
-        optimization: {
-            runtimeChunk: 'single',
-            splitChunks: {
-                chunks: 'all',
-                maxInitialRequests: Infinity,
-                minSize: 0,
-              cacheGroups: {
-                vendor: {
-                    test: /[\\/]node_modules[\\/]/,
-                    name(module) {
-                      // get the name. E.g. node_modules/packageName/not/this/part.js
-                      // or node_modules/packageName
-                      const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-          
-                      // npm package names are URL-safe, but some servers don't like @ symbols
-                      return `npm.${packageName.replace('@', '')}`;
-                    },
-                  },
-              },
-            },
-          },
     }
 }
